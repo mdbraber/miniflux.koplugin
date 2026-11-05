@@ -170,6 +170,94 @@ function OriginalHtml.makeFluid(html)
     return html
 end
 
+-- Text colours: e-ink shows grey and coloured text as low-contrast grey. Text that
+-- is not very light becomes black; very light text (white on a dark button or
+-- banner) is kept so it stays readable on its background. Backgrounds are untouched.
+local LIGHT_TEXT_LUMINANCE = 0.85
+
+local NAMED_COLORS = {
+    white = { 255, 255, 255 },
+    snow = { 255, 250, 250 },
+    ivory = { 255, 255, 240 },
+    whitesmoke = { 245, 245, 245 },
+    gainsboro = { 220, 220, 220 },
+    lightgray = { 211, 211, 211 },
+    lightgrey = { 211, 211, 211 },
+    silver = { 192, 192, 192 },
+}
+
+local function parseColor(value)
+    value = value:lower():gsub('%s+', '')
+    local hex = value:match('^#(%x+)$')
+    if hex and #hex == 3 then
+        return tonumber(hex:sub(1, 1):rep(2), 16), tonumber(hex:sub(2, 2):rep(2), 16), tonumber(hex:sub(3, 3):rep(2), 16)
+    elseif hex and (#hex == 6 or #hex == 8) then
+        return tonumber(hex:sub(1, 2), 16), tonumber(hex:sub(3, 4), 16), tonumber(hex:sub(5, 6), 16)
+    end
+    local r, g, b = value:match('^rgba?%((%d+),(%d+),(%d+)')
+    if r then
+        return tonumber(r), tonumber(g), tonumber(b)
+    end
+    local named = NAMED_COLORS[value]
+    if named then
+        return named[1], named[2], named[3]
+    end
+    return nil -- other names (gray, blue, …), inherit, currentColor: treat as dark
+end
+
+local function darkenColorValue(value)
+    local keyword = value:lower():gsub('%s+', '')
+    if keyword == 'inherit' or keyword == 'currentcolor' or keyword == 'transparent' or keyword == 'initial' then
+        return nil
+    end
+    local r, g, b = parseColor(value)
+    if r and (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255 >= LIGHT_TEXT_LUMINANCE then
+        return nil -- very light text: keep
+    end
+    return '#000000'
+end
+
+local function darkenCss(css)
+    -- Only the "color" property: it must start a declaration (after ; { space or
+    -- quote), so background-color, border-color and selectors like .color:hover
+    -- are left alone.
+    local out = (' ' .. css):gsub(
+        '([;{%s"\'])([Cc][Oo][Ll][Oo][Rr])(%s*:%s*)([^;}"\'!]+)',
+        function(before, prop, sep, value)
+            local trailing = value:match('%s*$')
+            local new = darkenColorValue((value:gsub('%s+$', '')))
+            return new and (before .. prop .. sep .. new .. trailing) or nil
+        end
+    )
+    return out:sub(2)
+end
+
+local function darkenTag(tag)
+    tag = tag:gsub('(%s[Ss][Tt][Yy][Ll][Ee]%s*=%s*")([^"]*)(")', function(pre, css, post)
+        return pre .. darkenCss(css) .. post
+    end)
+    tag = tag:gsub("(%s[Ss][Tt][Yy][Ll][Ee]%s*=%s*')([^']*)(')", function(pre, css, post)
+        return pre .. darkenCss(css) .. post
+    end)
+    -- <font color="#666666">
+    tag = tag:gsub('(%s[Cc][Oo][Ll][Oo][Rr]%s*=%s*)(["\']?)([^"\'%s>]+)(["\']?)', function(pre, q1, value, q2)
+        local new = darkenColorValue(value)
+        return new and (pre .. '"' .. new .. '"') or nil
+    end)
+    return tag
+end
+
+---Make text colours dark enough for e-ink (see LIGHT_TEXT_LUMINANCE)
+---@param html string
+---@return string
+function OriginalHtml.darkenText(html)
+    html = html:gsub('<%s*[%a][^>]*>', darkenTag)
+    html = html:gsub('(<[Ss][Tt][Yy][Ll][Ee][^>]*>)(.-)(</[Ss][Tt][Yy][Ll][Ee]>)', function(open, css, close)
+        return open .. darkenCss(css) .. close
+    end)
+    return html
+end
+
 local FLUID_CSS = '<style>img { max-width: 100% !important; height: auto !important; }'
     .. ' table { max-width: 100% !important; }</style>'
 
@@ -224,6 +312,7 @@ function OriginalHtml.finalizeDocument(html, entry_data)
     end
 
     html = OriginalHtml.makeFluid(html)
+    html = OriginalHtml.darkenText(html)
     head_start, head_end = html:find('<[Hh][Ee][Aa][Dd][^>]*>')
 
     local additions = {}
