@@ -9,10 +9,11 @@ Handles data fetching, menu building, and UI rendering.
 
 local ViewUtils = require('features/browser/views/view_utils')
 local _ = require('gettext')
+local T = require('ffi/util').template
 
 local FeedsView = {}
 
----@alias FeedsViewConfig {miniflux: Miniflux, settings: MinifluxSettings, page_state?: number, onSelectItem: function}
+---@alias FeedsViewConfig {miniflux: Miniflux, settings: MinifluxSettings, page_state?: number, onSelectItem: function, category_id?: number, onSelectAll?: function}
 
 ---Complete feeds view component (React-style) - returns view data for rendering
 ---@param config FeedsViewConfig
@@ -31,22 +32,59 @@ function FeedsView.show(config)
     end
     ---@cast result -nil
 
+    local hide_read = config.settings.hide_read_entries
+    local feeds = result.feeds
+    local title = config.category_title or _('Feeds')
+    local category_unread = 0
+
+    -- Feeds of one category (Categories → category): only its feeds, and when showing
+    -- unread entries only, only feeds that have unread entries
+    if config.category_id then
+        local unreads = result.counters and result.counters.unreads or {}
+        local filtered = {}
+        for _i, feed in ipairs(feeds) do
+            if feed.category and feed.category.id == config.category_id then
+                if not config.category_title and title == _('Feeds') and feed.category.title then
+                    title = feed.category.title
+                end
+                local unread = unreads[tostring(feed.id)] or 0
+                category_unread = category_unread + unread
+                if not hide_read or unread > 0 then
+                    table.insert(filtered, feed)
+                end
+            end
+        end
+        feeds = filtered
+    end
+
     -- Generate menu items using internal builder
     local menu_items = FeedsView.buildItems({
-        feeds = result.feeds,
+        feeds = feeds,
         counters = result.counters,
         onSelectItem = config.onSelectItem,
     })
 
-    local hide_read = config.settings.hide_read_entries
+    if config.category_id then
+        if #menu_items == 0 then
+            menu_items = {
+                { text = _('There are no feeds with unread entries.'), mandatory = '', action_type = 'no_action' },
+            }
+        end
+        -- First row: the whole category, as before this list existed
+        table.insert(menu_items, 1, {
+            text = T(_('All entries in %1'), title),
+            mandatory = hide_read and tostring(category_unread) or nil,
+            bold = true,
+            separator = true,
+            callback = config.onSelectAll,
+        })
+    end
+
     local subtitle = ViewUtils.buildSubtitle({
-        count = #result.feeds,
+        count = #feeds,
         hide_read = hide_read,
         item_type = 'feeds',
     })
-
-    -- Build clean title (status shown in subtitle now)
-    local title = _('Feeds')
 
     -- Return view data for browser to render
     return {

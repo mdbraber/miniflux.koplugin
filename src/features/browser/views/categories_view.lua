@@ -80,7 +80,7 @@ function CategoriesView.buildItems(config)
                 unread_count = unread_count,
             },
             callback = function()
-                onSelectItem(category.id)
+                onSelectItem(category.id, category_title)
             end,
         })
     end

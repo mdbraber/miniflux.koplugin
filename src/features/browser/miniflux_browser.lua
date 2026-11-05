@@ -388,7 +388,25 @@ function MinifluxBrowser:openContext(context)
     -- the *previous* (from) view (so Back lands at item 1 of feeds/categories,
     -- which is fine). For the destination view we pass page_state directly to
     -- navigate() so the entries list scrolls to the entry the user just read.
-    if context.type == 'feed' then
+    if context.type == 'feed' and context.category_id then
+        -- Feed opened via Categories → category: main → categories → category feeds → feed
+        view_name = 'feed_entries'
+        local category_context = { category_id = context.category_id }
+        nav_context = { feed_id = context.id, category_id = context.category_id }
+        table.insert(self.paths, { from = 'main', to = 'categories', page_state = 1 })
+        table.insert(self.paths, {
+            from = 'categories',
+            to = 'category_feeds',
+            page_state = 1,
+            context = category_context,
+        })
+        table.insert(self.paths, {
+            from = 'category_feeds',
+            to = 'feed_entries',
+            page_state = 1,
+            context = nav_context,
+        })
+    elseif context.type == 'feed' then
         view_name = 'feed_entries'
         nav_context = { feed_id = context.id }
         table.insert(self.paths, { from = 'main', to = 'feeds', page_state = 1 })
@@ -404,6 +422,12 @@ function MinifluxBrowser:openContext(context)
         table.insert(self.paths, { from = 'main', to = 'categories', page_state = 1 })
         table.insert(self.paths, {
             from = 'categories',
+            to = 'category_feeds',
+            page_state = 1,
+            context = nav_context,
+        })
+        table.insert(self.paths, {
+            from = 'category_feeds',
             to = 'category_entries',
             page_state = 1,
             context = nav_context,
@@ -467,11 +491,43 @@ function MinifluxBrowser:getRouteHandlers(nav_config)
                 miniflux = self.miniflux,
                 settings = self.settings,
                 page_state = nav_config.page_state,
-                onSelectItem = function(category_id)
+                onSelectItem = function(category_id, category_title)
                     self:goForward({
                         from = 'categories',
+                        to = 'category_feeds',
+                        context = { category_id = category_id, category_title = category_title },
+                    })
+                end,
+            })
+        end,
+        category_feeds = function()
+            local category_id = nav_config.context and nav_config.context.category_id
+            return FeedsView.show({
+                miniflux = self.miniflux,
+                settings = self.settings,
+                page_state = nav_config.page_state,
+                category_id = category_id,
+                category_title = nav_config.context and nav_config.context.category_title,
+                onSelectAll = function()
+                    self:goForward({
+                        from = 'category_feeds',
                         to = 'category_entries',
-                        context = { category_id = category_id },
+                        context = {
+                            category_id = category_id,
+                            category_title = nav_config.context and nav_config.context.category_title,
+                        },
+                    })
+                end,
+                onSelectItem = function(feed_id)
+                    self:goForward({
+                        from = 'category_feeds',
+                        to = 'feed_entries',
+                        -- category_id: Back (which restores this context) returns here
+                        context = {
+                            feed_id = feed_id,
+                            category_id = category_id,
+                            category_title = nav_config.context and nav_config.context.category_title,
+                        },
                     })
                 end,
             })
@@ -488,6 +544,7 @@ function MinifluxBrowser:getRouteHandlers(nav_config)
                     local context = {
                         type = 'feed',
                         id = nav_config.context and nav_config.context.feed_id,
+                        category_id = nav_config.context and nav_config.context.category_id,
                     }
                     self:openItem(entry_data, context)
                 end,
