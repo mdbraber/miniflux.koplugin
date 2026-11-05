@@ -161,6 +161,11 @@ function Miniflux:init()
         self:registerModule('endOfBook', MinifluxEndOfBook:new({ miniflux = self }))
     end
 
+    -- KOReader broadcasts DispatcherRegisterActions only once, when the dispatcher is
+    -- first set up, often before this plugin exists; register here as well, or gesture
+    -- actions bound to our events are silently skipped. registerAction is idempotent.
+    self:onDispatcherRegisterActions()
+
     -- Register with KOReader menu system
     self.ui.menu:registerToMainMenu(self)
 
