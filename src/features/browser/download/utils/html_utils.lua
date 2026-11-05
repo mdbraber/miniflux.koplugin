@@ -1,5 +1,6 @@
 local _ = require('gettext')
 local util = require('util') -- Use KOReader's built-in utilities
+local T = require('ffi/util').template
 
 -- [Third party](https://github.com/koreader/koreader-base/tree/master/thirdparty) tool
 -- https://github.com/msva/lua-htmlparser
@@ -74,85 +75,92 @@ end
 -- HTML DOCUMENT CREATION
 -- =============================================================================
 
+-- Built into every entry page (needs KOReader's Embedded Style on). KOReader's
+-- book stylesheet indents and justifies every paragraph without spacing; web
+-- articles read better as left-aligned blocks with space between them.
+local ENTRY_CSS = [[
+body { margin: 0; }
+.entry-meta { margin: 0 0 1.2em 0; padding: 0 0 0.6em 0; border-bottom: 1px solid #888888; }
+.entry-meta .entry-title { font-size: 1.5em; line-height: 1.2; margin: 0 0 0.3em 0; text-align: left; text-indent: 0; }
+.entry-meta .entry-byline { font-size: 0.85em; margin: 0; text-align: left; text-indent: 0; }
+.entry-content p, .entry-content li, .entry-content dd, .entry-content div, .entry-content td,
+.entry-content blockquote, .entry-content figcaption {
+    text-align: left; text-indent: 0;
+}
+.entry-content p { margin: 0 0 0.8em 0; }
+.entry-content h1, .entry-content h2, .entry-content h3, .entry-content h4, .entry-content h5, .entry-content h6 {
+    margin: 1.2em 0 0.4em 0; line-height: 1.25; text-align: left; text-indent: 0;
+}
+.entry-content ul, .entry-content ol { margin: 0 0 0.8em 0; padding-left: 1.4em; }
+.entry-content li { margin: 0 0 0.3em 0; }
+.entry-content img { max-width: 100% !important; height: auto !important; display: block; margin: 0.6em auto; }
+.entry-content figure { margin: 0 0 1em 0; }
+.entry-content figcaption { font-size: 0.85em; font-style: italic; }
+.entry-content blockquote { margin: 0 0 0.8em 0; padding: 0 0 0 0.8em; border-left: 3px solid #888888; }
+.entry-content pre { white-space: pre-wrap; font-size: 0.85em; margin: 0 0 0.8em 0; }
+.entry-content hr { border: 0; border-top: 1px solid #888888; margin: 1em 0; }
+.entry-source { margin: 1.5em 0 0 0; padding: 0.6em 0 0 0; border-top: 1px solid #888888; font-size: 0.85em; text-align: left; text-indent: 0; }
+]]
+
 ---Create a complete HTML document for an entry
 ---@param entry MinifluxEntry Entry data
 ---@param content string Processed HTML content
 ---@return string Complete HTML document
 function HtmlUtils.createHtmlDocument(entry, content)
-    local entry_title = entry.title or _('Untitled Entry')
+    local DateFormat = require('shared/date_format')
+    local escaped_title = util.htmlEscape(entry.title or _('Untitled Entry'))
 
-    -- Use KOReader's built-in HTML escape (more robust than custom implementation)
-    local escaped_title = util.htmlEscape(entry_title)
+    -- One byline under the title: "Feed · 4 November 2026, 11:03" (local time)
+    local byline_parts = {}
+    if entry.feed and entry.feed.title and entry.feed.title ~= '' then
+        table.insert(byline_parts, (util.htmlEscape(entry.feed.title)))
+    end
+    local published = entry.published_at and DateFormat.formatIso8601(entry.published_at)
+    if published then
+        table.insert(byline_parts, (util.htmlEscape(published)))
+    end
+    local byline = #byline_parts > 0
+            and ('\n        <p class="entry-byline">' .. table.concat(byline_parts, ' · ') .. '</p>')
+        or ''
 
-    -- Build metadata sections using table for efficient concatenation
-    local metadata_sections = {}
-    local section_count = 0
-
-    -- Feed information
-    if entry.feed and entry.feed.title then
-        section_count = section_count + 1
-        metadata_sections[section_count] = '<p><strong>'
-            .. _('Feed')
-            .. ':</strong> '
-            .. util.htmlEscape(entry.feed.title)
-            .. '</p>'
+    -- Link to the original at the end, where it is useful when an article was cut short
+    local source = ''
+    if entry.url and entry.url ~= '' then
+        local host = entry.url:match('^https?://([^/?#]+)') or entry.url
+        host = host:gsub('^www%.', '')
+        source = string.format(
+            '\n    <p class="entry-source"><a href="%s">%s</a></p>',
+            (entry.url:gsub('&', '&amp;'):gsub('"', '&quot;'):gsub('<', '&lt;'):gsub('>', '&gt;')),
+            (util.htmlEscape(T(_('Read on %1'), host)))
+        )
     end
 
-    -- Publication date (no escaping needed for timestamp)
-    if entry.published_at then
-        section_count = section_count + 1
-        metadata_sections[section_count] = '<p><strong>'
-            .. _('Published')
-            .. ':</strong> '
-            .. entry.published_at
-            .. '</p>'
-    end
-
-    -- Original URL
-    if entry.url then
-        local base_url = entry.url:match('^(https?://[^/]+)') or entry.url
-        section_count = section_count + 1
-        metadata_sections[section_count] = '<p><strong>'
-            .. _('URL')
-            .. ':</strong> <a href="'
-            .. entry.url
-            .. '">'
-            .. util.htmlEscape(base_url)
-            .. '</a></p>'
-    end
-
-    -- Build final HTML using efficient concatenation
-    local metadata_html = table.concat(metadata_sections, '\n        ')
-
-    -- Create HTML document with inlined template
-    local html_parts = {
-        string.format(
-            [[<!DOCTYPE html>
+    return string.format(
+        [[<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>%s</title>
+    <style>
+%s    </style>
 </head>
 <body>
     <div class="entry-meta">
-        <h1>%s</h1>]],
-            escaped_title,
-            escaped_title
-        ),
-        metadata_html ~= '' and ('\n        ' .. metadata_html) or '',
-        string.format(
-            [[    </div>
+        <h1 class="entry-title">%s</h1>%s
+    </div>
     <div class="entry-content">
         %s
-    </div>
+    </div>%s
 </body>
 </html>]],
-            content
-        ),
-    }
-
-    return table.concat(html_parts)
+        escaped_title,
+        ENTRY_CSS,
+        escaped_title,
+        byline,
+        content,
+        source
+    )
 end
 
 ---Process YouTube iframes and replace them with thumbnails using regex
