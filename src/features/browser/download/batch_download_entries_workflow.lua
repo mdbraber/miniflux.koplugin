@@ -202,8 +202,12 @@ function BatchDownloadEntriesWorkflow.downloadSingleEntry(entry_data, opts)
         html_file = html_file,
     }
 
+    -- Newsletters (tagged web-view) come from their original page with styles intact
+    local OriginalHtml = require('features/browser/download/utils/original_html')
+    local original_html = OriginalHtml.resolve(entry_data, settings)
+
     -- Discover images
-    local content = entry_data.content or entry_data.summary or ''
+    local content = original_html or entry_data.content or entry_data.summary or ''
 
     -- Process YouTube iframes first so thumbnail images are discovered
     content = HtmlUtils.processYouTubeIframes(content)
@@ -308,6 +312,7 @@ function BatchDownloadEntriesWorkflow.downloadSingleEntry(entry_data, opts)
         seen_images = seen_images,
         base_url = base_url,
         include_images = effective_include_images,
+        original_document = original_html ~= nil,
     })
 
     if html_error or not html_content then

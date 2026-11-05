@@ -10,6 +10,7 @@ Browse your Miniflux server content directly from KOReader:
 - **Context-Aware Navigation**: Navigate between entries with next/previous actions after finishing reading an entry.
 - **Status Synchronization**: Mark entries as read/unread. Don't worry if you aren't online, the system will keep an eye on it and you can sync it later or the system will remind you when you go online again.
 - **E-ink Optimized**: Efficient image downloading and display for e-readers. You can proxy the images to be transformed for e-ink optimization so you can resize them to fit your reader.
+- **Original page for newsletters** (this fork): entries tagged `web-view` in Miniflux (for example email newsletters published by [Newsbridge](https://github.com/mdbraber/newsbridge)) are downloaded from their original URL with their styles intact, instead of the sanitized content stored by Miniflux, which strips inline styles. Use Render Mode "web" and Embedded Style "on" in KOReader for the closest match to the original layout. Toggle it under Settings → "Original page for web-view entries". If the page cannot be downloaded, the Miniflux content is used.
 
 ## Installation
 

@@ -310,7 +310,7 @@ end
 
 ---Process HTML content to replace image tags with local filenames
 ---@param content string Original HTML content
----@param opts table Options containing seen_images, include_images, base_url
+---@param opts table Options containing seen_images, include_images, base_url, preserve_attributes?
 ---@return string Processed HTML content
 function Images.processHtmlImages(content, opts)
     -- Extract parameters from opts
@@ -334,7 +334,15 @@ function Images.processHtmlImages(content, opts)
 
         -- Always replace with local filename if we have image info
         -- The file may or may not exist depending on include_images setting
-        if img_info then
+        if img_info and opts.preserve_attributes then
+            -- Original pages: keep the tag's own attributes (sizes, alignment, styles)
+            -- and drop srcset so the reader does not try to load remote images
+            local local_tag = img_tag:gsub('%s+srcset="[^"]*"', '')
+            local_tag = local_tag:gsub(IMG_SRC_PATTERN, function()
+                return 'src="' .. img_info.filename .. '"'
+            end, 1)
+            return local_tag
+        elseif img_info then
             return Images.createLocalImageTag(img_info)
         else
             return img_tag -- Leave original unchanged (image wasn't discovered)

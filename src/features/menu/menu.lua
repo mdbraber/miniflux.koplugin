@@ -6,6 +6,7 @@ local Entries = require('features/menu/settings/entries')
 local SortOrder = require('features/menu/settings/sort_order')
 local SortDirection = require('features/menu/settings/sort_direction')
 local IncludeImages = require('features/menu/settings/include_images')
+local UseOriginalHtml = require('features/menu/settings/use_original_html')
 local MarkAsReadOnOpen = require('features/menu/settings/mark_as_read_on_open')
 local CopyCss = require('features/menu/settings/copy_css')
 local TestConnection = require('features/menu/settings/test_connection')
@@ -59,6 +60,7 @@ function Menu.build(plugin)
                     SortOrder.getMenuItem(plugin.settings),
                     SortDirection.getMenuItem(plugin.settings),
                     IncludeImages.getMenuItem(plugin.settings),
+                    UseOriginalHtml.getMenuItem(plugin.settings),
                     MarkAsReadOnOpen.getMenuItem(plugin.settings),
                     ProxyImageDownloader.getMenuItem(plugin.settings),
                     CopyCss.getMenuItem(plugin),

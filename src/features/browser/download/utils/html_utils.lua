@@ -30,13 +30,14 @@ end
 -- Current candidates: processEntryContent, transformEntryHtml, processHtmlContent
 ---Process and transform entry content HTML
 ---@param raw_content string Raw HTML content
----@param options table {entry_data, seen_images, base_url, include_images}
+---@param options table {entry_data, seen_images, base_url, include_images, original_document?}
 ---@return string|nil processed_html, Error|nil error
 function HtmlUtils.processEntryContent(raw_content, options)
     local entry_data = options.entry_data
     local seen_images = options.seen_images
     local base_url = options.base_url
     local include_images = options.include_images
+    local original_document = options.original_document
 
     if not entry_data or not raw_content then
         return nil, Error.new('Invalid parameters for HTML processing')
@@ -47,8 +48,17 @@ function HtmlUtils.processEntryContent(raw_content, options)
         seen_images = seen_images,
         include_images = include_images,
         base_url = base_url,
+        preserve_attributes = original_document,
     })
-    processed_content = HtmlUtils.cleanHtmlContent(processed_content)
+    processed_content =
+        HtmlUtils.cleanHtmlContent(processed_content, { keep_styles = original_document })
+
+    -- Original pages (e.g. newsletters) are complete documents with their own styles:
+    -- keep them as they are instead of wrapping them in our template
+    if original_document then
+        local OriginalHtml = require('features/browser/download/utils/original_html')
+        return OriginalHtml.finalizeDocument(processed_content, entry_data), nil
+    end
 
     -- Create HTML document
     local html_content = HtmlUtils.createHtmlDocument(entry_data, processed_content)
@@ -163,8 +173,10 @@ end
 
 ---Clean and normalize HTML content for offline viewing using DOM parser
 ---@param content string Raw HTML content
+---@param opts? {keep_styles?: boolean} Keep <style> blocks (for original pages)
 ---@return string Cleaned HTML content
-function HtmlUtils.cleanHtmlContent(content)
+function HtmlUtils.cleanHtmlContent(content, opts)
+    opts = opts or {}
     if not content or content == '' then
         return ''
     end
@@ -180,8 +192,10 @@ function HtmlUtils.cleanHtmlContent(content)
         'object', -- Objects and embeds (multimedia)
         'embed', -- Flash/multimedia embeds
         'form', -- Forms (won't work offline)
-        'style', -- Style blocks (can cause display issues)
     }
+    if not opts.keep_styles then
+        table.insert(unwanted_selectors, 'style') -- Style blocks (can cause display issues)
+    end
 
     -- Use HTML parser approach (reliable)
     local root = htmlparser.parse(content, 5000)

@@ -11,6 +11,7 @@ local DEFAULTS = {
     direction = 'desc',
     hide_read_entries = true,
     include_images = true,
+    use_original_html = true, -- download the original page for entries tagged "web-view"
     mark_as_read_on_open = true,
 
     -- API Cache settings
@@ -43,6 +44,7 @@ local DEFAULTS = {
 ---@field direction "asc"|"desc" Sort direction
 ---@field hide_read_entries boolean Whether to hide read entries
 ---@field include_images boolean Whether to include images
+---@field use_original_html boolean Download the original page for entries tagged "web-view"
 ---@field mark_as_read_on_open boolean Whether to automatically mark entries as read when opened
 ---@field api_cache_ttl number API cache TTL in seconds
 ---@field api_cache_ttl_counters number API cache TTL for counters in seconds
@@ -64,6 +66,7 @@ local MinifluxSettings = {}
 ---| "direction"
 ---| "hide_read_entries"
 ---| "include_images"
+---| "use_original_html"
 ---| "mark_as_read_on_open"
 MinifluxSettings.Key = {
     SERVER_ADDRESS = 'server_address',
@@ -73,6 +76,7 @@ MinifluxSettings.Key = {
     DIRECTION = 'direction',
     HIDE_READ_ENTRIES = 'hide_read_entries',
     INCLUDE_IMAGES = 'include_images',
+    USE_ORIGINAL_HTML = 'use_original_html',
     MARK_AS_READ_ON_OPEN = 'mark_as_read_on_open',
 }
 

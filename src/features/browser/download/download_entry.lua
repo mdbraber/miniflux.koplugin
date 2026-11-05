@@ -13,6 +13,7 @@ local EntryMetadata = require('domains/utils/entry_metadata')
 local DownloadDialogs = require('features/browser/download/utils/download_dialogs')
 local Images = require('features/browser/download/utils/images')
 local HtmlUtils = require('features/browser/download/utils/html_utils')
+local OriginalHtml = require('features/browser/download/utils/original_html')
 local Trapper = require('ui/trapper')
 local Files = require('shared/files')
 local Notification = require('shared/widgets/notification')
@@ -238,6 +239,7 @@ local function generateHtmlContent(config)
     local seen_images = config.seen_images
     local base_url = config.base_url
     local settings = config.settings
+    local original_document = config.original_document
 
     --[[
     CONTENT PROCESSING PHASE UI:
@@ -265,6 +267,7 @@ local function generateHtmlContent(config)
         seen_images = seen_images,
         base_url = base_url,
         include_images = settings.include_images,
+        original_document = original_document,
     })
 
     -- Error handling: Fail gracefully with descriptive error message
@@ -456,8 +459,12 @@ function EntryWorkflow.execute(deps)
             return -- User cancelled - fire and forget
         end
 
+        -- Newsletters (tagged web-view) come from their original page with styles intact;
+        -- everything else (or a failed download) uses the content stored in Miniflux
+        local original_html = OriginalHtml.resolve(entry_data, settings)
+
         -- Always discover images to build mapping (regardless of download setting)
-        local content = entry_data.content or entry_data.summary or ''
+        local content = original_html or entry_data.content or entry_data.summary or ''
 
         -- Process YouTube iframes first so thumbnail images are discovered
         content = HtmlUtils.processYouTubeIframes(content)
@@ -550,6 +557,7 @@ function EntryWorkflow.execute(deps)
             seen_images = seen_images,
             base_url = base_url,
             settings = settings,
+            original_document = original_html ~= nil,
         })
         if
             html_generation_status == PHASE_RESULTS.CANCELLED

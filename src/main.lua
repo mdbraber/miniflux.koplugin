@@ -101,7 +101,7 @@ function Miniflux:init()
 
     -- Create update service instance
     self.update_service = UpdateService:new({
-        repo_owner = 'AlgusDark',
+        repo_owner = 'mdbraber',
         repo_name = 'miniflux.koplugin',
         plugin_path = self.path,
         logger_prefix = 'Miniflux:',
