@@ -61,11 +61,16 @@ function EntriesView.show(config)
 
     -- Generate menu items using internal builder
     local show_feed_names = (entry_type == 'unread' or entry_type == 'category')
+    local group_by = config.settings.group_by
+    if entry_type == 'feed' and group_by == 'feed' then
+        group_by = 'none' -- a single feed has nothing to group by feed
+    end
     local menu_items = EntriesView.buildItems({
         entries = entries,
         show_feed_names = show_feed_names,
         hide_read_entries = config.settings.hide_read_entries,
         onSelectItem = config.onSelectItem,
+        group_by = group_by,
     })
 
     -- Build subtitle based on type
@@ -157,8 +162,61 @@ function EntriesView.buildSingleItem(entry, config)
     }
 end
 
+---Group key and heading of an entry
+---@param entry table
+---@param group_by "feed"|"date"
+---@return string key, string label
+local function groupOf(entry, group_by)
+    if group_by == 'feed' then
+        local title = entry.feed and entry.feed.title or _('Unknown feed')
+        return 'feed:' .. tostring(entry.feed and entry.feed.id or title), title
+    end
+    local DateFormat = require('shared/date_format')
+    local unix = entry.published_at and DateFormat.parseIso8601(entry.published_at)
+    if not unix then
+        return 'date:none', _('No date')
+    end
+    return 'date:' .. DateFormat.dayKey(unix), _(DateFormat.dayLabel(unix))
+end
+
+---Insert non-selectable headings between groups. Groups appear in the order of their
+---first entry, so the list's sort order is kept (newest first stays newest first).
+---@param entries table[]
+---@param group_by "feed"|"date"
+---@param buildItem fun(entry: table): table
+---@return table[]
+function EntriesView.buildGroupedItems(entries, group_by, buildItem)
+    local groups, order = {}, {}
+    for _i, entry in ipairs(entries) do
+        local key, label = groupOf(entry, group_by)
+        if not groups[key] then
+            groups[key] = { label = label, entries = {} }
+            table.insert(order, key)
+        end
+        table.insert(groups[key].entries, entry)
+    end
+
+    local items = {}
+    for _i, key in ipairs(order) do
+        local group = groups[key]
+        if #items > 0 then
+            items[#items].separator = true
+        end
+        table.insert(items, {
+            text = group.label,
+            mandatory = tostring(#group.entries),
+            bold = true,
+            action_type = 'no_action',
+        })
+        for _j, entry in ipairs(group.entries) do
+            table.insert(items, buildItem(entry))
+        end
+    end
+    return items
+end
+
 ---Build entries menu items with status indicators (internal helper)
----@param config {entries: table[], show_feed_names: boolean, onSelectItem: function, hide_read_entries?: boolean}
+---@param config {entries: table[], show_feed_names: boolean, onSelectItem: function, hide_read_entries?: boolean, group_by?: "none"|"feed"|"date"}
 ---@return table[] Menu items for entries view
 function EntriesView.buildItems(config)
     local entries = config.entries or {}
@@ -172,6 +230,17 @@ function EntriesView.buildItems(config)
         local message = hide_read_entries and _('There are no unread entries.')
             or _('There are no entries.')
         return { { text = message, mandatory = '', action_type = 'no_action' } }
+    end
+
+    local group_by = config.group_by
+    if group_by == 'feed' or group_by == 'date' then
+        return EntriesView.buildGroupedItems(entries, group_by, function(entry)
+            return EntriesView.buildSingleItem(entry, {
+                -- the feed is already the heading when grouping by feed
+                show_feed_names = show_feed_names and group_by ~= 'feed',
+                onSelectItem = onSelectItem,
+            })
+        end)
     end
 
     for _, entry in ipairs(entries) do

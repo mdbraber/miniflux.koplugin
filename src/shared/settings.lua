@@ -15,6 +15,7 @@ local DEFAULTS = {
     mark_as_read_on_open = true,
     quiet_mode = true, -- hide progress and info messages (errors are always shown)
     latest_only_in_history = true, -- keep only the latest Miniflux entry in KOReader's history
+    group_by = 'none', -- entry lists: 'none', 'feed' (category and unread lists) or 'date'
 
     -- API Cache settings
     api_cache_ttl = 300, -- 5 minutes in seconds (default for feeds, counts)
@@ -49,6 +50,7 @@ local DEFAULTS = {
 ---@field use_original_html boolean Download the original page for entries tagged "web-view"
 ---@field quiet_mode boolean Hide progress and info messages
 ---@field latest_only_in_history boolean Keep only the latest Miniflux entry in history
+---@field group_by "none"|"feed"|"date" Grouping of entry lists
 ---@field mark_as_read_on_open boolean Whether to automatically mark entries as read when opened
 ---@field api_cache_ttl number API cache TTL in seconds
 ---@field api_cache_ttl_counters number API cache TTL for counters in seconds

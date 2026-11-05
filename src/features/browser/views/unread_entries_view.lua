@@ -38,6 +38,7 @@ function UnreadEntriesView.show(config)
     local menu_items = EntriesView.buildItems({
         entries = entries,
         show_feed_names = true, -- Always show feed names for unread entries
+        group_by = config.settings.group_by,
         hide_read_entries = true, -- Always true for unread entries (affects empty message)
         onSelectItem = config.onSelectItem,
     })

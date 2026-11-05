@@ -201,6 +201,28 @@ function MinifluxBrowser:onLeftButtonTap()
         })
     end
 
+    -- Grouping of entry lists (category and unread lists by feed or date, feeds by date)
+    local view_name = current_path and current_path.to
+    if view_name == 'category_entries' or view_name == 'unread_entries' or view_name == 'feed_entries' then
+        local current = self.settings.group_by or 'none'
+        local function choice(value, label)
+            return {
+                text = label .. (current == value and ' ✓' or ''),
+                callback = function()
+                    UIManager:close(self.config_dialog)
+                    self.settings.group_by = value
+                    self:refreshCurrentViewData()
+                end,
+            }
+        end
+        local row = { choice('none', _('No grouping')) }
+        if view_name ~= 'feed_entries' then
+            table.insert(row, choice('feed', _('Group by feed')))
+        end
+        table.insert(row, choice('date', _('Group by date')))
+        table.insert(buttons, row)
+    end
+
     -- Show refresh button when online
     if is_online then
         table.insert(buttons, {

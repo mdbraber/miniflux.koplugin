@@ -66,6 +66,39 @@ function DateFormat.formatLocal(unix)
     return string.format('%d %s %d, %02d:%02d', t.day, MONTHS[t.month], t.year, t.hour, t.min)
 end
 
+local WEEKDAYS = { 'Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday' }
+
+---Local calendar day of a Unix time, as a sortable key (e.g. 20261105)
+---@param unix number
+---@return number
+function DateFormat.dayKey(unix)
+    local t = os.date('*t', unix)
+    return t.year * 10000 + t.month * 100 + t.day
+end
+
+---Heading for a day: "Today", "Yesterday", "Tuesday 3 November" (year added when not this year)
+---@param unix number
+---@param now? number Current time (for tests)
+---@return string
+function DateFormat.dayLabel(unix, now)
+    now = now or os.time()
+    local key = DateFormat.dayKey(unix)
+    if key == DateFormat.dayKey(now) then
+        return 'Today'
+    end
+    local today = os.date('*t', now)
+    local yesterday = os.time({ year = today.year, month = today.month, day = today.day - 1, hour = 12 })
+    if key == DateFormat.dayKey(yesterday) then
+        return 'Yesterday'
+    end
+    local t = os.date('*t', unix)
+    local label = string.format('%s %d %s', WEEKDAYS[t.wday], t.day, MONTHS[t.month])
+    if t.year ~= today.year then
+        label = label .. ' ' .. t.year
+    end
+    return label
+end
+
 ---Format an ISO-8601 timestamp for display, or nil when it cannot be parsed
 ---@param iso string
 ---@return string|nil
