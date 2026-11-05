@@ -202,6 +202,17 @@ function MinifluxAPI:updateEntries(entry_ids, config)
     })
 end
 
+---Toggle the starred (bookmark) flag of an entry
+---@param entry_id number Entry ID
+---@param config? table Configuration including optional dialogs
+---@return table|nil result, Error|nil error
+function MinifluxAPI:toggleBookmark(entry_id, config)
+    config = config or {}
+    return self.api_client:put('/entries/' .. tostring(entry_id) .. '/bookmark', {
+        dialogs = config.dialogs,
+    })
+end
+
 -- =============================================================================
 -- FEEDS
 -- =============================================================================

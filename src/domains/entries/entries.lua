@@ -63,6 +63,14 @@ function Entries:updateEntries(entry_ids, config)
     return self.miniflux.api:updateEntries(entry_ids, config)
 end
 
+---Toggle the starred flag of an entry
+---@param entry_id number Entry ID
+---@param config? table Configuration including optional dialogs
+---@return table|nil result, Error|nil error
+function Entries:toggleStar(entry_id, config)
+    return self.miniflux.api:toggleBookmark(entry_id, config)
+end
+
 ---Get entries with optional filtering
 ---@param options? ApiOptions Query options for filtering and sorting
 ---@param config? table Configuration including optional dialogs

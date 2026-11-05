@@ -186,6 +186,21 @@ function Miniflux:onDispatcherRegisterActions()
         title = _('Read Miniflux entries'),
         general = true,
     })
+    -- Actions while reading a Miniflux entry (assign them in Taps and gestures)
+    for _i, action in ipairs({
+        { 'miniflux_entry_actions', 'MinifluxEntryActions', _('Miniflux: entry menu') },
+        { 'miniflux_next_entry', 'MinifluxNextEntry', _('Miniflux: next entry') },
+        { 'miniflux_previous_entry', 'MinifluxPreviousEntry', _('Miniflux: previous entry') },
+        { 'miniflux_return_to_list', 'MinifluxReturnToList', _('Miniflux: back to list') },
+        { 'miniflux_toggle_star', 'MinifluxToggleStar', _('Miniflux: star / unstar entry') },
+    }) do
+        Dispatcher:registerAction(action[1], {
+            category = 'none',
+            event = action[2],
+            title = action[3],
+            reader = true,
+        })
+    end
 end
 
 ---Handle the read entries dispatcher event

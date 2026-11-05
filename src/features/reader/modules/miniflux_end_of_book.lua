@@ -86,8 +86,10 @@ end
 
 ---Show end of entry dialog with navigation options
 ---@param entry_info table Entry information with file_path and entry_id
+---@param opts? {title?: string} Dialog title (defaults to the end-of-entry text)
 ---@return table|nil Dialog reference for caller management or nil if failed
-function MinifluxEndOfBook:showDialog(entry_info)
+function MinifluxEndOfBook:showDialog(entry_info, opts)
+    opts = opts or {}
     if not entry_info or not entry_info.file_path or not entry_info.entry_id then
         return nil
     end
@@ -139,6 +141,8 @@ function MinifluxEndOfBook:showDialog(entry_info)
         end
     end
 
+    local is_starred = self.miniflux.reader_entry_service:isEntryStarred(entry_info.entry_id, doc_settings)
+
     -- Declare dialog variable first for proper scoping in callbacks
     ---@type ButtonDialog
     local dialog
@@ -156,6 +160,22 @@ function MinifluxEndOfBook:showDialog(entry_info)
                 callback = function()
                     UIManager:close(dialog)
                     navigateToEntry('next')
+                end,
+            },
+        },
+        {
+            {
+                text = is_starred and _('★ Unstar') or _('☆ Star'),
+                callback = function()
+                    UIManager:close(dialog)
+                    self.miniflux.reader_entry_service:toggleEntryStar(entry_info.entry_id, doc_settings)
+                end,
+            },
+            {
+                text = mark_button_text,
+                callback = function()
+                    UIManager:close(dialog)
+                    mark_callback()
                 end,
             },
         },
@@ -182,15 +202,6 @@ function MinifluxEndOfBook:showDialog(entry_info)
                 end,
             },
             {
-                text = mark_button_text,
-                callback = function()
-                    UIManager:close(dialog)
-                    mark_callback()
-                end,
-            },
-        },
-        {
-            {
                 text = _('⌂ Return to Miniflux'),
                 callback = function()
                     UIManager:close(dialog)
@@ -201,6 +212,8 @@ function MinifluxEndOfBook:showDialog(entry_info)
                     self:returnToBrowser()
                 end,
             },
+        },
+        {
             {
                 text = _('Cancel'),
                 callback = function()
@@ -213,7 +226,7 @@ function MinifluxEndOfBook:showDialog(entry_info)
     -- Create dialog and assign to the pre-declared variable
     dialog = ButtonDialog:new({
         name = 'miniflux_end_of_entry',
-        title = _("You've reached the end of the entry.\nWhat would you like to do?"),
+        title = opts.title or _("You've reached the end of the entry.\nWhat would you like to do?"),
         title_align = 'center',
         buttons = buttons,
     })
@@ -251,6 +264,89 @@ function MinifluxEndOfBook:showDialog(entry_info)
     -- Show dialog and return reference for caller management
     UIManager:show(dialog)
     return dialog
+end
+
+-- =============================================================================
+-- ACTIONS WHILE READING (menu and gestures)
+-- =============================================================================
+
+---Entry info for the open document, or nil when it is not a Miniflux entry
+---@return {file_path: string, entry_id: number}|nil
+function MinifluxEndOfBook:getCurrentEntryInfo()
+    if not self:shouldShowCustomDialog() then
+        return nil
+    end
+    local file_path = self.miniflux.ui.document.file
+    local entry_id = tonumber(file_path:match('/miniflux/(%d+)/'))
+    if not entry_id then
+        return nil
+    end
+    return { file_path = file_path, entry_id = entry_id }
+end
+
+---Show the entry menu (previous/next, star, mark read, return) at any point
+---@return boolean handled
+function MinifluxEndOfBook:showEntryActions()
+    local entry_info = self:getCurrentEntryInfo()
+    if not entry_info then
+        return false
+    end
+    self:showDialog(entry_info, { title = _('Miniflux entry') })
+    return true
+end
+
+---@param direction 'previous'|'next'
+---@return boolean handled
+function MinifluxEndOfBook:navigateFromCurrent(direction)
+    local entry_info = self:getCurrentEntryInfo()
+    if not entry_info then
+        return false
+    end
+    local Navigation = require('features/reader/services/navigation_service')
+    Navigation.navigateToEntry(entry_info, self.miniflux, { direction = direction })
+    return true
+end
+
+---Close the entry and go back to the list it was opened from
+---@return boolean handled
+function MinifluxEndOfBook:returnToListFromCurrent()
+    if not self:getCurrentEntryInfo() then
+        return false
+    end
+    local ReaderUI = require('apps/reader/readerui')
+    if ReaderUI.instance then
+        ReaderUI.instance:onClose()
+    end
+    self:returnToBrowser()
+    return true
+end
+
+---@return boolean handled
+function MinifluxEndOfBook:toggleStarFromCurrent()
+    local entry_info = self:getCurrentEntryInfo()
+    if not entry_info then
+        return false
+    end
+    local doc_settings = self.miniflux.ui and self.miniflux.ui.doc_settings
+    self.miniflux.reader_entry_service:toggleEntryStar(entry_info.entry_id, doc_settings)
+    return true
+end
+
+-- Gesture actions (registered in main.lua); they do nothing outside Miniflux entries
+function MinifluxEndOfBook:onMinifluxEntryActions()
+    return self:showEntryActions()
+end
+function MinifluxEndOfBook:onMinifluxNextEntry()
+    return self:navigateFromCurrent('next')
+end
+function MinifluxEndOfBook:onMinifluxPreviousEntry()
+    return self:navigateFromCurrent('previous')
+end
+function MinifluxEndOfBook:onMinifluxReturnToList()
+    return self:returnToListFromCurrent()
+end
+function MinifluxEndOfBook:onMinifluxToggleStar()
+    return self:toggleStarFromCurrent()
 end
 
 ---Return to the browser view where the user was before opening this entry.

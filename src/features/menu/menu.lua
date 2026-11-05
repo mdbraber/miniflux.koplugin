@@ -20,9 +20,33 @@ local Menu = {}
 ---@param plugin Miniflux The main plugin instance
 ---@return table menu_structure KOReader submenu structure
 function Menu.build(plugin)
-    return {
-        text = _('Miniflux'),
-        sub_item_table = {
+    -- While reading a Miniflux entry, its actions come first in the menu
+    local entry_items = {}
+    if plugin.endOfBook and plugin.endOfBook:getCurrentEntryInfo() then
+        entry_items = {
+            {
+                text = _('Entry menu (previous, next, star…)'),
+                callback = function(touchmenu_instance)
+                    if touchmenu_instance then
+                        touchmenu_instance:closeMenu()
+                    end
+                    plugin.endOfBook:showEntryActions()
+                end,
+            },
+            {
+                text = _('Back to list'),
+                separator = true,
+                callback = function(touchmenu_instance)
+                    if touchmenu_instance then
+                        touchmenu_instance:closeMenu()
+                    end
+                    plugin.endOfBook:returnToListFromCurrent()
+                end,
+            },
+        }
+    end
+
+    local items = {
             -- === BROWSER OPTIONS ===
             {
                 text = _('Read entries'),
@@ -72,7 +96,14 @@ function Menu.build(plugin)
                     ExportLogs.getMenuItem(),
                 },
             },
-        },
+    }
+    for i = #entry_items, 1, -1 do
+        table.insert(items, 1, entry_items[i])
+    end
+
+    return {
+        text = _('Miniflux'),
+        sub_item_table = items,
     }
 end
 

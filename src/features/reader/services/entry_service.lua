@@ -164,6 +164,56 @@ function ReaderEntryService:changeEntryStatus(entry_id, new_status, doc_settings
     end
 end
 
+---Check whether an entry is starred, from the open document's metadata or the saved one
+---@param entry_id number Entry ID
+---@param doc_settings? table Optional ReaderUI DocSettings instance
+---@return boolean
+function ReaderEntryService:isEntryStarred(entry_id, doc_settings)
+    local metadata = doc_settings and doc_settings:readSetting('miniflux_entry')
+    if not metadata then
+        metadata = EntryMetadata.loadMetadata(entry_id)
+    end
+    return metadata and metadata.starred == true or false
+end
+
+---Star or unstar an entry on the server. Needs a connection: Miniflux only offers a
+---toggle, which cannot be queued safely for later.
+---@param entry_id number Entry ID
+---@param doc_settings? table Optional ReaderUI DocSettings instance
+---@return boolean success
+function ReaderEntryService:toggleEntryStar(entry_id, doc_settings)
+    local Notification = require('shared/widgets/notification')
+
+    if not EntryValidation.isValidId(entry_id) then
+        Notification:error(_('Cannot star: invalid entry ID'))
+        return false
+    end
+
+    local was_starred = self:isEntryStarred(entry_id, doc_settings)
+    local _result, err = self.entries:toggleStar(entry_id, {
+        dialogs = { loading = { text = was_starred and _('Unstarring...') or _('Starring...') } },
+    })
+    if err then
+        Notification:error(_('Could not change the star: no connection to Miniflux'))
+        return false
+    end
+
+    local now_starred = not was_starred
+    -- Update the open document's metadata (written on close) and the saved one
+    local metadata = doc_settings and doc_settings:readSetting('miniflux_entry')
+    if metadata then
+        metadata.starred = now_starred
+        doc_settings:saveSetting('miniflux_entry', metadata)
+    end
+    EntryMetadata.updateEntryStarred(entry_id, now_starred)
+
+    local MinifluxEvent = require('shared/event')
+    MinifluxEvent:broadcastMinifluxInvalidateCache()
+
+    Notification:success(now_starred and _('Starred') or _('Unstarred'))
+    return true
+end
+
 -- =============================================================================
 -- SYNC INFRASTRUCTURE METHODS
 -- =============================================================================

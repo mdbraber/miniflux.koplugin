@@ -12,6 +12,7 @@ local EntryMetadata = {}
 ---@field title string
 ---@field url string
 ---@field status string
+---@field starred boolean
 ---@field published_at string
 ---@field feed {id: number, title: string}
 ---@field category {id: number, title: string}
@@ -42,6 +43,7 @@ function EntryMetadata.saveMetadata(params)
         title = entry_data.title,
         url = entry_data.url,
         status = entry_data.status,
+        starred = entry_data.starred == true,
         published_at = entry_data.published_at,
         images = images_mapping,
         last_updated = os.date('%Y-%m-%d %H:%M:%S', os.time()),
@@ -119,6 +121,16 @@ function EntryMetadata.updateEntryStatus(entry_id, opts)
                 entry_id
             )
         end
+    end
+end
+
+---Update the starred flag in an entry's saved metadata
+---@param entry_id number Entry ID
+---@param starred boolean
+function EntryMetadata.updateEntryStarred(entry_id, starred)
+    local _sdr, err = EntryMetadata.updateMetadata(entry_id, { starred = starred })
+    if err then
+        logger.warn('[Miniflux:EntryMetadata] Could not save starred for entry', entry_id, err.message or err)
     end
 end
 
