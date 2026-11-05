@@ -236,6 +236,12 @@ function Miniflux:onDispatcherRegisterActions()
     end
 end
 
+---Open the Miniflux browser. Launchers such as SimpleUI's quick actions look for a
+---method named launch/open/show on plugins. (Not onShow: that is a widget event.)
+function Miniflux:launch()
+    self.browser:open()
+end
+
 ---Handle the read entries dispatcher event
 ---@return nil
 function Miniflux:onReadMinifluxEntries()
