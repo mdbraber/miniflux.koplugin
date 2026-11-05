@@ -7,6 +7,7 @@ local SortOrder = require('features/menu/settings/sort_order')
 local SortDirection = require('features/menu/settings/sort_direction')
 local IncludeImages = require('features/menu/settings/include_images')
 local UseOriginalHtml = require('features/menu/settings/use_original_html')
+local Toggle = require('features/menu/settings/toggle')
 local MarkAsReadOnOpen = require('features/menu/settings/mark_as_read_on_open')
 local CopyCss = require('features/menu/settings/copy_css')
 local TestConnection = require('features/menu/settings/test_connection')
@@ -85,6 +86,25 @@ function Menu.build(plugin)
                     SortDirection.getMenuItem(plugin.settings),
                     IncludeImages.getMenuItem(plugin.settings),
                     UseOriginalHtml.getMenuItem(plugin.settings),
+                    Toggle.getMenuItem({
+                        settings = plugin.settings,
+                        key = 'quiet_mode',
+                        text = _('Quiet mode'),
+                        help_text = _(
+                            'Hide progress and information messages (downloading, loading, marked as read). Errors are always shown.'
+                        ),
+                        on_change = function(value)
+                            require('shared/widgets/notification').quiet = value
+                        end,
+                    }),
+                    Toggle.getMenuItem({
+                        settings = plugin.settings,
+                        key = 'latest_only_in_history',
+                        text = _('Keep only the latest entry in history'),
+                        help_text = _(
+                            'When an entry opens, older Miniflux entries are removed from the reading history (and from lists based on it, such as recent books), so only the latest one can be resumed. Books are not affected.'
+                        ),
+                    }),
                     MarkAsReadOnOpen.getMenuItem(plugin.settings),
                     ProxyImageDownloader.getMenuItem(plugin.settings),
                     CopyCss.getMenuItem(plugin),

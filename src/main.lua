@@ -161,6 +161,8 @@ function Miniflux:init()
         self:registerModule('endOfBook', MinifluxEndOfBook:new({ miniflux = self }))
     end
 
+    require('shared/widgets/notification').quiet = self.settings.quiet_mode
+
     -- KOReader broadcasts DispatcherRegisterActions only once, when the dispatcher is
     -- first set up, often before this plugin exists; register here as well, or gesture
     -- actions bound to our events are silently skipped. registerAction is idempotent.
@@ -173,6 +175,32 @@ function Miniflux:init()
     self:checkForAutomaticUpdates()
 
     logger.info('[Miniflux:Main] Plugin initialization complete')
+end
+
+---When a Miniflux entry opens, drop older Miniflux entries from KOReader's history
+---(and so from history-based lists such as SimpleUI's recent books), keeping only this
+---one to resume. Books and other documents are not touched.
+function Miniflux:onReaderReady()
+    if not self.settings.latest_only_in_history then
+        return
+    end
+    if not (self.endOfBook and self.endOfBook:getCurrentEntryInfo()) then
+        return
+    end
+    local ReadHistory = require('readhistory')
+    local current = self.ui.document.file
+    local removed = 0
+    for i = #ReadHistory.hist, 1, -1 do
+        local item = ReadHistory.hist[i]
+        if item and item.file ~= current and item.file:match('/miniflux/%d+/entry%.html$') then
+            ReadHistory:removeItem(item, i, true)
+            removed = removed + 1
+        end
+    end
+    if removed > 0 then
+        ReadHistory:_flush()
+        logger.info('[Miniflux:Main] Removed', removed, 'older entries from history')
+    end
 end
 
 ---Add Miniflux items to the main menu (called by KOReader)

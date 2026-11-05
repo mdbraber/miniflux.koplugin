@@ -37,6 +37,15 @@ local WORKFLOW_MESSAGES = {
     COMPLETION_SIMPLE = _('Download completed!'),
 }
 
+-- Progress and summary messages; in quiet mode nothing is shown and the workflow
+-- simply continues (as if the user chose to continue). Errors use Notification:error.
+local function progressInfo(...)
+    if Notification.quiet then
+        return true
+    end
+    return Trapper:info(...)
+end
+
 -- Generate progress message for image downloads (avoids template creation in hot loop)
 local function createImageProgressMessage(opts)
     return T(WORKFLOW_MESSAGES.DOWNLOAD_IMAGES, opts.title, opts.current, opts.total)
@@ -166,7 +175,7 @@ local function downloadImagesWithProgress(opts)
             time_prev = time.now()
 
             -- Full progress update with cancellation check (slow but necessary)
-            user_wants_to_continue = Trapper:info(createImageProgressMessage({
+            user_wants_to_continue = progressInfo(createImageProgressMessage({
                 title = context.title,
                 current = i,
                 total = total_images,
@@ -188,7 +197,7 @@ local function downloadImagesWithProgress(opts)
             Parameters: (message, dismissable=true, fast_refresh=true)
             No cancellation check here to maintain performance.
             --]]
-            Trapper:info(
+            progressInfo(
                 createImageProgressMessage({
                     title = context.title,
                     current = i,
@@ -247,7 +256,7 @@ local function generateHtmlContent(config)
     This is typically fast but shown for workflow consistency.
     --]]
     local user_wants_to_continue =
-        Trapper:info(T(WORKFLOW_MESSAGES.DOWNLOAD_PROCESSING, context.title))
+        progressInfo(T(WORKFLOW_MESSAGES.DOWNLOAD_PROCESSING, context.title))
 
     -- Handle cancellation (cleanup will be handled by entry deletion if cancelled)
     local cancellation_result = handleCancellation(user_wants_to_continue, context)
@@ -350,7 +359,7 @@ local function showCompletionSummary(config)
     local message = summary ~= '' and T(WORKFLOW_MESSAGES.COMPLETION_WITH_SUMMARY, summary)
         or WORKFLOW_MESSAGES.COMPLETION_SIMPLE
 
-    Trapper:info(message) -- Final progress message (user typically dismisses quickly)
+    progressInfo(message) -- Final progress message (user typically dismisses quickly)
     return PHASE_RESULTS.SUCCESS
 end
 
@@ -449,7 +458,7 @@ function EntryWorkflow.execute(deps)
             ':',
             title
         )
-        local user_wants_to_continue = Trapper:info(
+        local user_wants_to_continue = progressInfo(
             T(WORKFLOW_MESSAGES.DOWNLOAD_PREPARING, context.title or _('Unknown Entry'))
         )
 
@@ -540,7 +549,7 @@ function EntryWorkflow.execute(deps)
                 download_summary.success_count,
                 download_summary.total_count
             )
-            Trapper:info(error_msg) -- Show error summary, then continue
+            progressInfo(error_msg) -- Show error summary, then continue
         end
 
         --[[

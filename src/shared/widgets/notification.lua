@@ -36,13 +36,23 @@ end
 
 -- **Notification** - Simple notification wrapper around InfoMessage with
 -- consistent timeout handling. Always returns instance for consistent API.
-local Notification = {}
+local Notification = {
+    -- Quiet mode (plugin setting quiet_mode): info and success messages are not shown;
+    -- warnings and errors always are. Set by the plugin on init and when it changes.
+    quiet = false,
+}
+
+-- Stand-in returned when a message is suppressed, so callers can still close() it
+local SilentInstance = { close = function() end, is_open = false }
 
 ---Show success notification
 ---@param text string Message text
 ---@param opts? {timeout?: number} Optional configuration (defaults: timeout=2s)
 ---@return NotificationInstance Instance for manual closing
 function Notification:success(text, opts)
+    if Notification.quiet then
+        return SilentInstance
+    end
     opts = opts or {}
     local timeout = opts.timeout or DEFAULT_TIMEOUTS.SUCCESS
 
@@ -91,6 +101,9 @@ end
 ---@param opts? {timeout?: number} Optional configuration (defaults: timeout=nil for manual close)
 ---@return NotificationInstance Instance for manual closing
 function Notification:info(text, opts)
+    if Notification.quiet then
+        return SilentInstance
+    end
     opts = opts or {}
     local timeout = opts.timeout -- Defaults to nil (manual close) for info notifications
 

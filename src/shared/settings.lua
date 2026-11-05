@@ -13,6 +13,8 @@ local DEFAULTS = {
     include_images = true,
     use_original_html = true, -- download the original page for entries tagged "web-view"
     mark_as_read_on_open = true,
+    quiet_mode = true, -- hide progress and info messages (errors are always shown)
+    latest_only_in_history = true, -- keep only the latest Miniflux entry in KOReader's history
 
     -- API Cache settings
     api_cache_ttl = 300, -- 5 minutes in seconds (default for feeds, counts)
@@ -45,6 +47,8 @@ local DEFAULTS = {
 ---@field hide_read_entries boolean Whether to hide read entries
 ---@field include_images boolean Whether to include images
 ---@field use_original_html boolean Download the original page for entries tagged "web-view"
+---@field quiet_mode boolean Hide progress and info messages
+---@field latest_only_in_history boolean Keep only the latest Miniflux entry in history
 ---@field mark_as_read_on_open boolean Whether to automatically mark entries as read when opened
 ---@field api_cache_ttl number API cache TTL in seconds
 ---@field api_cache_ttl_counters number API cache TTL for counters in seconds
