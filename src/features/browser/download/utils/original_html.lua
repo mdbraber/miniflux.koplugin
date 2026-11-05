@@ -173,6 +173,37 @@ end
 local FLUID_CSS = '<style>img { max-width: 100% !important; height: auto !important; }'
     .. ' table { max-width: 100% !important; }</style>'
 
+-- Newsletters size their text in CSS pixels (body text is usually about 16 px).
+-- At KOReader's default zoom (96 dpi: 1 CSS px = 1 screen px) that is tiny on a
+-- 300 ppi screen. Pick the zoom at which 16 px text matches the reader's own font size.
+local NEWSLETTER_BODY_PX = 16
+
+---Zoom (render dpi) at which a newsletter's body text matches the KOReader font size
+---@return number dpi between 96 and 300
+function OriginalHtml.readingZoomDpi()
+    local ok, dpi = pcall(function()
+        local Screen = require('device').screen
+        local font_size = G_reader_settings:readSetting('copt_font_size') or 22
+        return 96 * Screen:scaleBySize(font_size) / NEWSLETTER_BODY_PX
+    end)
+    if not ok or not dpi then
+        return 96
+    end
+    return math.max(96, math.min(300, math.floor(dpi / 10 + 0.5) * 10))
+end
+
+---Set the reading zoom of a downloaded newsletter (overrides the document's own
+---zoom; changing it afterwards in the bottom menu sticks until it is downloaded again)
+---@param html_file string Path of the saved entry
+function OriginalHtml.applyReadingZoom(html_file)
+    local DocSettings = require('docsettings')
+    local doc_settings = DocSettings:open(html_file)
+    local dpi = OriginalHtml.readingZoomDpi()
+    doc_settings:saveSetting('copt_render_dpi', dpi)
+    doc_settings:flush()
+    logger.info('[Miniflux:OriginalHtml] Newsletter zoom set to', dpi, 'dpi for', html_file)
+end
+
 ---Turn a downloaded page into a standalone document for KOReader.
 ---Keeps the page's own <html>/<head>/<style>; makes sure there is a charset and title.
 ---@param html string Page HTML (already cleaned and with local image paths)

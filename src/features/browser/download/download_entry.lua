@@ -584,6 +584,9 @@ function EntryWorkflow.execute(deps)
             Notification:error(_('Failed to save metadata: ') .. metadata_error.message)
             return -- Failed - fire and forget
         end
+        if original_html then
+            OriginalHtml.applyReadingZoom(context.html_file)
+        end
 
         --[[
         PHASE 4: COMPLETION

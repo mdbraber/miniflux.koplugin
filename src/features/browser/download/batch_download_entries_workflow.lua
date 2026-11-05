@@ -339,6 +339,9 @@ function BatchDownloadEntriesWorkflow.downloadSingleEntry(entry_data, opts)
         images_count = success_count,
         include_images = effective_include_images,
     })
+    if metadata_error == nil and original_html then
+        OriginalHtml.applyReadingZoom(context.html_file)
+    end
 
     return metadata_error == nil
 end
