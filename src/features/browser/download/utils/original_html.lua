@@ -112,6 +112,67 @@ function OriginalHtml.resolve(entry_data, settings)
     return html
 end
 
+-- Fixed widths at or above this (CSS px) are layout containers (newsletters are
+-- usually 600–700 px wide); they become full width. Smaller ones (buttons,
+-- icons, columns) are left alone.
+local FLUID_MIN_PX = 400
+
+local function fluidCss(css)
+    -- width / max-width: Npx -> 100% ; min-width: Npx -> 0
+    css = css:gsub('([%w%-]*width)(%s*:%s*)(%d+%.?%d*)px', function(prop, sep, n)
+        if tonumber(n) < FLUID_MIN_PX then
+            return nil
+        end
+        local p = prop:lower()
+        if p == 'min-width' then
+            return prop .. sep .. '0'
+        elseif p == 'width' or p == 'max-width' then
+            return prop .. sep .. '100%'
+        end
+        return nil
+    end)
+    return css
+end
+
+local function fluidTag(tag)
+    local name = (tag:match('^<%s*([%w]+)') or ''):lower()
+    local big = false
+    -- width="600", width='600', width=600 (plain numbers are pixels)
+    tag = tag:gsub('(%s[Ww][Ii][Dd][Tt][Hh]%s*=%s*)(["\']?)(%d+)(["\']?)', function(pre, q1, n, q2)
+        if tonumber(n) < FLUID_MIN_PX then
+            return nil
+        end
+        big = true
+        return pre .. '"100%"'
+    end)
+    tag = tag:gsub('(%s[Ss][Tt][Yy][Ll][Ee]%s*=%s*")([^"]*)(")', function(pre, css, post)
+        return pre .. fluidCss(css) .. post
+    end)
+    tag = tag:gsub("(%s[Ss][Tt][Yy][Ll][Ee]%s*=%s*')([^']*)(')", function(pre, css, post)
+        return pre .. fluidCss(css) .. post
+    end)
+    -- A wide image's fixed height would distort it once its width follows the screen
+    if big and name == 'img' then
+        tag = tag:gsub('%s[Hh][Ee][Ii][Gg][Hh][Tt]%s*=%s*["\']?%d+["\']?', '')
+    end
+    return tag
+end
+
+---Make a fixed-width page (e.g. a 600 px newsletter) use the full screen width:
+---wide width attributes and CSS widths become 100%, wide images scale down.
+---@param html string
+---@return string
+function OriginalHtml.makeFluid(html)
+    html = html:gsub('<%s*[%a][^>]*>', fluidTag)
+    html = html:gsub('(<[Ss][Tt][Yy][Ll][Ee][^>]*>)(.-)(</[Ss][Tt][Yy][Ll][Ee]>)', function(open, css, close)
+        return open .. fluidCss(css) .. close
+    end)
+    return html
+end
+
+local FLUID_CSS = '<style>img { max-width: 100% !important; height: auto !important; }'
+    .. ' table { max-width: 100% !important; }</style>'
+
 ---Turn a downloaded page into a standalone document for KOReader.
 ---Keeps the page's own <html>/<head>/<style>; makes sure there is a charset and title.
 ---@param html string Page HTML (already cleaned and with local image paths)
@@ -131,6 +192,9 @@ function OriginalHtml.finalizeDocument(html, entry_data)
         head_start, head_end = html:find('<[Hh][Ee][Aa][Dd][^>]*>')
     end
 
+    html = OriginalHtml.makeFluid(html)
+    head_start, head_end = html:find('<[Hh][Ee][Aa][Dd][^>]*>')
+
     local additions = {}
     if not html:find('<[Mm][Ee][Tt][Aa][^>]-[Cc][Hh][Aa][Rr][Ss][Ee][Tt]') then
         table.insert(additions, '<meta charset="UTF-8">')
@@ -138,6 +202,14 @@ function OriginalHtml.finalizeDocument(html, entry_data)
     if not html:find('<[Tt][Ii][Tt][Ll][Ee][%s>]') then
         local title = util.htmlEscape(entry_data.title or '')
         table.insert(additions, '<title>' .. title .. '</title>')
+    end
+    -- Our rules go last in <head> so they win over the page's own styles
+    local head_close = html:find('</[Hh][Ee][Aa][Dd]>')
+    if head_close then
+        html = html:sub(1, head_close - 1) .. FLUID_CSS .. html:sub(head_close)
+        head_start, head_end = html:find('<[Hh][Ee][Aa][Dd][^>]*>')
+    else
+        table.insert(additions, FLUID_CSS)
     end
     if #additions > 0 then
         html = html:sub(1, head_end)
