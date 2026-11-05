@@ -343,6 +343,20 @@ function MinifluxBrowser:openItem(entry_data, context)
     -- can restore the same page in the list instead of jumping to page 1.
     if context then
         context.page_state = self:getCurrentItemNumber()
+        -- In a grouped list, previous/next follow the order on screen (by feed or by
+        -- date) instead of Miniflux's order: remember that order for the reader.
+        context.ordered_entries = nil
+        if self.settings.group_by == 'feed' or self.settings.group_by == 'date' then
+            local ordered = {}
+            for _i, item in ipairs(self.item_table or {}) do
+                if item.entry_data and item.entry_data.id then
+                    table.insert(ordered, item.entry_data)
+                end
+            end
+            if #ordered > 0 then
+                context.ordered_entries = ordered
+            end
+        end
     end
     local EntryWorkflow = require('features/browser/download/download_entry')
     EntryWorkflow.execute({

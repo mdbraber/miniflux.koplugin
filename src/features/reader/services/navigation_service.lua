@@ -130,6 +130,19 @@ function Navigation.navigateToEntry(entry_info, miniflux, navigation_options)
         context = { type = 'global' }
     end
 
+    -- Grouped list: follow the order shown in the list
+    if context and context.ordered_entries then
+        local handled = Navigation.handleListNavigation({
+            entry_info = entry_info,
+            miniflux = miniflux,
+            direction = direction,
+            context = context,
+        })
+        if handled then
+            return
+        end
+    end
+
     -- Handle local navigation separately (skip API entirely)
     if context and context.type == 'local' then
         Navigation.handleLocalNavigation({
@@ -215,8 +228,61 @@ function Navigation.handleApiNavigation(options)
                 or _('No next entry available on server')
         end
 
-        Notification:info(no_entry_msg)
+        Notification:warning(no_entry_msg)
     end
+end
+
+---Entry next to the current one in an ordered list ("next" is the one below it)
+---@param ordered table[] Entries in list order
+---@param entry_id number Current entry ID
+---@param direction string "previous" or "next"
+---@return table|nil target, boolean found Whether the current entry is in the list
+function Navigation.adjacentInList(ordered, entry_id, direction)
+    for i, entry in ipairs(ordered) do
+        if entry.id == entry_id then
+            local j = direction == DIRECTION_PREVIOUS and i - 1 or i + 1
+            return ordered[j], true
+        end
+    end
+    return nil, false
+end
+
+---Navigate within the list the entry was opened from (grouped lists)
+---@param options {entry_info: table, miniflux: table, direction: string, context: table}
+---@return boolean handled False when the entry is not in the list (use the API instead)
+function Navigation.handleListNavigation(options)
+    local entry_info = options.entry_info
+    local direction = options.direction
+    local context = options.context
+
+    local target, found =
+        Navigation.adjacentInList(context.ordered_entries, entry_info.entry_id, direction)
+    if not found then
+        return false
+    end
+    if not target then
+        Notification:warning(
+            direction == DIRECTION_PREVIOUS and _('This is the first entry in the list')
+                or _('This is the last entry in the list')
+        )
+        return true
+    end
+
+    if
+        not Navigation.tryLocalFileFirst({
+            entry_info = entry_info,
+            entry_data = target,
+            context = context,
+        })
+    then
+        local EntryWorkflow = require('features/browser/download/download_entry')
+        EntryWorkflow.execute({
+            entry_data = target,
+            settings = options.miniflux.settings,
+            context = context,
+        })
+    end
+    return true
 end
 
 ---Handle local navigation (skip API entirely)
@@ -251,7 +317,7 @@ function Navigation.handleLocalNavigation(options)
             Notification:error(_('Failed to open target entry'))
         end
     else
-        Notification:info(_('No ' .. direction .. ' entry available in local files'))
+        Notification:warning(_('No ' .. direction .. ' entry available in local files'))
     end
 end
 
