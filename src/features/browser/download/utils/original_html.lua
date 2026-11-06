@@ -1,5 +1,4 @@
 local http = require('socket.http')
-local ltn12 = require('ltn12')
 local socket = require('socket')
 local socketutil = require('socketutil')
 local util = require('util')
@@ -138,13 +137,16 @@ local function fluidTag(tag)
     local name = (tag:match('^<%s*([%w]+)') or ''):lower()
     local big = false
     -- width="600", width='600', width=600 (plain numbers are pixels)
-    tag = tag:gsub('(%s[Ww][Ii][Dd][Tt][Hh]%s*=%s*)(["\']?)(%d+)(["\']?)', function(pre, q1, n, q2)
-        if tonumber(n) < FLUID_MIN_PX then
-            return nil
+    tag = tag:gsub(
+        '(%s[Ww][Ii][Dd][Tt][Hh]%s*=%s*)(["\']?)(%d+)(["\']?)',
+        function(pre, _q1, n, _q2)
+            if tonumber(n) < FLUID_MIN_PX then
+                return nil
+            end
+            big = true
+            return pre .. '"100%"'
         end
-        big = true
-        return pre .. '"100%"'
-    end)
+    )
     tag = tag:gsub('(%s[Ss][Tt][Yy][Ll][Ee]%s*=%s*")([^"]*)(")', function(pre, css, post)
         return pre .. fluidCss(css) .. post
     end)
@@ -164,9 +166,12 @@ end
 ---@return string
 function OriginalHtml.makeFluid(html)
     html = html:gsub('<%s*[%a][^>]*>', fluidTag)
-    html = html:gsub('(<[Ss][Tt][Yy][Ll][Ee][^>]*>)(.-)(</[Ss][Tt][Yy][Ll][Ee]>)', function(open, css, close)
-        return open .. fluidCss(css) .. close
-    end)
+    html = html:gsub(
+        '(<[Ss][Tt][Yy][Ll][Ee][^>]*>)(.-)(</[Ss][Tt][Yy][Ll][Ee]>)',
+        function(open, css, close)
+            return open .. fluidCss(css) .. close
+        end
+    )
     return html
 end
 
@@ -190,7 +195,9 @@ local function parseColor(value)
     value = value:lower():gsub('%s+', '')
     local hex = value:match('^#(%x+)$')
     if hex and #hex == 3 then
-        return tonumber(hex:sub(1, 1):rep(2), 16), tonumber(hex:sub(2, 2):rep(2), 16), tonumber(hex:sub(3, 3):rep(2), 16)
+        return tonumber(hex:sub(1, 1):rep(2), 16),
+            tonumber(hex:sub(2, 2):rep(2), 16),
+            tonumber(hex:sub(3, 3):rep(2), 16)
     elseif hex and (#hex == 6 or #hex == 8) then
         return tonumber(hex:sub(1, 2), 16), tonumber(hex:sub(3, 4), 16), tonumber(hex:sub(5, 6), 16)
     end
@@ -207,7 +214,12 @@ end
 
 local function darkenColorValue(value)
     local keyword = value:lower():gsub('%s+', '')
-    if keyword == 'inherit' or keyword == 'currentcolor' or keyword == 'transparent' or keyword == 'initial' then
+    if
+        keyword == 'inherit'
+        or keyword == 'currentcolor'
+        or keyword == 'transparent'
+        or keyword == 'initial'
+    then
         return nil
     end
     local r, g, b = parseColor(value)
@@ -240,10 +252,13 @@ local function darkenTag(tag)
         return pre .. darkenCss(css) .. post
     end)
     -- <font color="#666666">
-    tag = tag:gsub('(%s[Cc][Oo][Ll][Oo][Rr]%s*=%s*)(["\']?)([^"\'%s>]+)(["\']?)', function(pre, q1, value, q2)
-        local new = darkenColorValue(value)
-        return new and (pre .. '"' .. new .. '"') or nil
-    end)
+    tag = tag:gsub(
+        '(%s[Cc][Oo][Ll][Oo][Rr]%s*=%s*)(["\']?)([^"\'%s>]+)(["\']?)',
+        function(pre, _q1, value, _q2)
+            local new = darkenColorValue(value)
+            return new and (pre .. '"' .. new .. '"') or nil
+        end
+    )
     return tag
 end
 
@@ -252,9 +267,12 @@ end
 ---@return string
 function OriginalHtml.darkenText(html)
     html = html:gsub('<%s*[%a][^>]*>', darkenTag)
-    html = html:gsub('(<[Ss][Tt][Yy][Ll][Ee][^>]*>)(.-)(</[Ss][Tt][Yy][Ll][Ee]>)', function(open, css, close)
-        return open .. darkenCss(css) .. close
-    end)
+    html = html:gsub(
+        '(<[Ss][Tt][Yy][Ll][Ee][^>]*>)(.-)(</[Ss][Tt][Yy][Ll][Ee]>)',
+        function(open, css, close)
+            return open .. darkenCss(css) .. close
+        end
+    )
     return html
 end
 
@@ -271,7 +289,8 @@ local NEWSLETTER_BODY_PX = 16
 function OriginalHtml.readingZoomDpi()
     local ok, dpi = pcall(function()
         local Screen = require('device').screen
-        local font_size = G_reader_settings:readSetting('copt_font_size') or 22
+        -- selene: allow(undefined_variable)
+        local font_size = G_reader_settings:readSetting('copt_font_size') or 22 -- KOReader global
         return 96 * Screen:scaleBySize(font_size) / NEWSLETTER_BODY_PX
     end)
     if not ok or not dpi then

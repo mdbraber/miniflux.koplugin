@@ -141,7 +141,8 @@ function MinifluxEndOfBook:showDialog(entry_info, opts)
         end
     end
 
-    local is_starred = self.miniflux.reader_entry_service:isEntryStarred(entry_info.entry_id, doc_settings)
+    local is_starred =
+        self.miniflux.reader_entry_service:isEntryStarred(entry_info.entry_id, doc_settings)
 
     -- Declare dialog variable first for proper scoping in callbacks
     ---@type ButtonDialog
@@ -168,7 +169,10 @@ function MinifluxEndOfBook:showDialog(entry_info, opts)
                 text = is_starred and _('★ Unstar') or _('☆ Star'),
                 callback = function()
                     UIManager:close(dialog)
-                    self.miniflux.reader_entry_service:toggleEntryStar(entry_info.entry_id, doc_settings)
+                    self.miniflux.reader_entry_service:toggleEntryStar(
+                        entry_info.entry_id,
+                        doc_settings
+                    )
                 end,
             },
             {

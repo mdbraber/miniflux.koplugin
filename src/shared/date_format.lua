@@ -23,7 +23,8 @@ function DateFormat.parseIso8601(iso)
     if type(iso) ~= 'string' then
         return nil
     end
-    local y, mo, d, h, mi, s, rest = iso:match('^(%d%d%d%d)-(%d%d)-(%d%d)[T ](%d%d):(%d%d):?(%d*)(.*)$')
+    local y, mo, d, h, mi, s, rest =
+        iso:match('^(%d%d%d%d)-(%d%d)-(%d%d)[T ](%d%d):(%d%d):?(%d*)(.*)$')
     -- Feeds without a date come through as 0001-01-01: treat anything before 1971 as unknown
     if not y or tonumber(y) < 1971 then
         return nil
@@ -87,7 +88,8 @@ function DateFormat.dayLabel(unix, now)
         return 'Today'
     end
     local today = os.date('*t', now)
-    local yesterday = os.time({ year = today.year, month = today.month, day = today.day - 1, hour = 12 })
+    local yesterday =
+        os.time({ year = today.year, month = today.month, day = today.day - 1, hour = 12 })
     if key == DateFormat.dayKey(yesterday) then
         return 'Yesterday'
     end

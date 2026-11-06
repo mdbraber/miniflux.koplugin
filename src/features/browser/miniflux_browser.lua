@@ -203,7 +203,11 @@ function MinifluxBrowser:onLeftButtonTap()
 
     -- Grouping of entry lists (category and unread lists by feed or date, feeds by date)
     local view_name = current_path and current_path.to
-    if view_name == 'category_entries' or view_name == 'unread_entries' or view_name == 'feed_entries' then
+    if
+        view_name == 'category_entries'
+        or view_name == 'unread_entries'
+        or view_name == 'feed_entries'
+    then
         local current = self.settings.group_by or 'none'
         local function choice(value, label)
             return {
@@ -514,7 +518,8 @@ function MinifluxBrowser:getRouteHandlers(nav_config)
                         to = 'category_entries',
                         context = {
                             category_id = category_id,
-                            category_title = nav_config.context and nav_config.context.category_title,
+                            category_title = nav_config.context
+                                and nav_config.context.category_title,
                         },
                     })
                 end,
@@ -526,7 +531,8 @@ function MinifluxBrowser:getRouteHandlers(nav_config)
                         context = {
                             feed_id = feed_id,
                             category_id = category_id,
-                            category_title = nav_config.context and nav_config.context.category_title,
+                            category_title = nav_config.context
+                                and nav_config.context.category_title,
                         },
                     })
                 end,

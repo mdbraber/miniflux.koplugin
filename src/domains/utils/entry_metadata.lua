@@ -130,7 +130,11 @@ end
 function EntryMetadata.updateEntryStarred(entry_id, starred)
     local _sdr, err = EntryMetadata.updateMetadata(entry_id, { starred = starred })
     if err then
-        logger.warn('[Miniflux:EntryMetadata] Could not save starred for entry', entry_id, err.message or err)
+        logger.warn(
+            '[Miniflux:EntryMetadata] Could not save starred for entry',
+            entry_id,
+            err.message or err
+        )
     end
 end
 

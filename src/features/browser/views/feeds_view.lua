@@ -67,7 +67,11 @@ function FeedsView.show(config)
     if config.category_id then
         if #menu_items == 0 then
             menu_items = {
-                { text = _('There are no feeds with unread entries.'), mandatory = '', action_type = 'no_action' },
+                {
+                    text = _('There are no feeds with unread entries.'),
+                    mandatory = '',
+                    action_type = 'no_action',
+                },
             }
         end
         -- First row: the whole category, as before this list existed

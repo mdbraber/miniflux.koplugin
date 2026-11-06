@@ -1,5 +1,7 @@
 # Miniflux Plugin for KOReader
 
+> Fork of [AlgusDark/miniflux.koplugin](https://github.com/AlgusDark/miniflux.koplugin) with original-page newsletters (Newsbridge), a readable article layout, an entry menu with gestures, starring, quiet mode, grouping by feed or date, and Categories → category → feeds.
+
 A KOReader plugin allows you to read RSS entries online/offline on your e-reader device.
 
 ## Features
@@ -14,7 +16,7 @@ Browse your Miniflux server content directly from KOReader:
 
 ## Installation
 
-1. Download the [latest release from this repository](https://github.com/AlgusDark/miniflux.koplugin/releases/latest)
+1. Download the [latest release from this repository](https://github.com/mdbraber/miniflux.koplugin/releases/latest)
 2. Unzip and copy the **miniflux.koplugin** folder into KOReader's plugin folder
 3. Activate the plugin
 

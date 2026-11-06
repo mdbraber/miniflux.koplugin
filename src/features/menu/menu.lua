@@ -48,74 +48,74 @@ function Menu.build(plugin)
     end
 
     local items = {
-            -- === BROWSER OPTIONS ===
-            {
-                text = _('Read entries'),
-                help_text = _('Browse RSS entries'),
-                callback = function()
-                    plugin.browser:open()
-                end,
+        -- === BROWSER OPTIONS ===
+        {
+            text = _('Read entries'),
+            help_text = _('Browse RSS entries'),
+            callback = function()
+                plugin.browser:open()
+            end,
+        },
+        {
+            text = _('Sync status changes'),
+            help_text = _('Sync pending changes (entries, feeds, categories)'),
+            callback = function()
+                if plugin.sync_service then
+                    -- Use KOReader's standard network handling (same as translate)
+                    local NetworkMgr = require('ui/network/manager')
+                    NetworkMgr:runWhenOnline(function()
+                        -- Show sync dialog after ensuring online connectivity
+                        plugin.sync_service:processAllQueues()
+                    end)
+                end
+            end,
+        },
+
+        -- === SETTINGS SUBMENU ===
+        {
+            text = _('Settings'),
+            separator = true,
+            sub_item_table = {
+                -- === CONNECTION SETTINGS ===
+                ServerConfig.getMenuItem(plugin.settings),
+                TestConnection.getMenuItem(plugin.entries),
+
+                -- === DISPLAY SETTINGS ===
+                Entries.getMenuItem(plugin.settings),
+                SortOrder.getMenuItem(plugin.settings),
+                SortDirection.getMenuItem(plugin.settings),
+                IncludeImages.getMenuItem(plugin.settings),
+                UseOriginalHtml.getMenuItem(plugin.settings),
+                Toggle.getMenuItem({
+                    settings = plugin.settings,
+                    key = 'quiet_mode',
+                    text = _('Quiet mode'),
+                    help_text = _(
+                        'Hide progress and information messages (downloading, loading, marked as read). Errors are always shown.'
+                    ),
+                    on_change = function(value)
+                        require('shared/widgets/notification').quiet = value
+                    end,
+                }),
+                Toggle.getMenuItem({
+                    settings = plugin.settings,
+                    key = 'latest_only_in_history',
+                    text = _('Keep only the latest entry in history'),
+                    help_text = _(
+                        'When an entry opens, older Miniflux entries are removed from the reading history (and from lists based on it, such as recent books), so only the latest one can be resumed. Books are not affected.'
+                    ),
+                }),
+                MarkAsReadOnOpen.getMenuItem(plugin.settings),
+                ProxyImageDownloader.getMenuItem(plugin.settings),
+                CopyCss.getMenuItem(plugin),
+
+                -- === UPDATE SETTINGS ===
+                UpdateSettings.getMenuItem(plugin),
+
+                -- === DEBUG ===
+                ExportLogs.getMenuItem(),
             },
-            {
-                text = _('Sync status changes'),
-                help_text = _('Sync pending changes (entries, feeds, categories)'),
-                callback = function()
-                    if plugin.sync_service then
-                        -- Use KOReader's standard network handling (same as translate)
-                        local NetworkMgr = require('ui/network/manager')
-                        NetworkMgr:runWhenOnline(function()
-                            -- Show sync dialog after ensuring online connectivity
-                            plugin.sync_service:processAllQueues()
-                        end)
-                    end
-                end,
-            },
-
-            -- === SETTINGS SUBMENU ===
-            {
-                text = _('Settings'),
-                separator = true,
-                sub_item_table = {
-                    -- === CONNECTION SETTINGS ===
-                    ServerConfig.getMenuItem(plugin.settings),
-                    TestConnection.getMenuItem(plugin.entries),
-
-                    -- === DISPLAY SETTINGS ===
-                    Entries.getMenuItem(plugin.settings),
-                    SortOrder.getMenuItem(plugin.settings),
-                    SortDirection.getMenuItem(plugin.settings),
-                    IncludeImages.getMenuItem(plugin.settings),
-                    UseOriginalHtml.getMenuItem(plugin.settings),
-                    Toggle.getMenuItem({
-                        settings = plugin.settings,
-                        key = 'quiet_mode',
-                        text = _('Quiet mode'),
-                        help_text = _(
-                            'Hide progress and information messages (downloading, loading, marked as read). Errors are always shown.'
-                        ),
-                        on_change = function(value)
-                            require('shared/widgets/notification').quiet = value
-                        end,
-                    }),
-                    Toggle.getMenuItem({
-                        settings = plugin.settings,
-                        key = 'latest_only_in_history',
-                        text = _('Keep only the latest entry in history'),
-                        help_text = _(
-                            'When an entry opens, older Miniflux entries are removed from the reading history (and from lists based on it, such as recent books), so only the latest one can be resumed. Books are not affected.'
-                        ),
-                    }),
-                    MarkAsReadOnOpen.getMenuItem(plugin.settings),
-                    ProxyImageDownloader.getMenuItem(plugin.settings),
-                    CopyCss.getMenuItem(plugin),
-
-                    -- === UPDATE SETTINGS ===
-                    UpdateSettings.getMenuItem(plugin),
-
-                    -- === DEBUG ===
-                    ExportLogs.getMenuItem(),
-                },
-            },
+        },
     }
     for i = #entry_items, 1, -1 do
         table.insert(items, 1, entry_items[i])
